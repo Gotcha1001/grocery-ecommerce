@@ -1,15 +1,22 @@
 "use client";
-import Image from "next/image";
-import Link from "next/link";
 import { useState } from "react";
-import { FiMinus, FiPlus, FiTrash2, FiX } from "react-icons/fi";
+import { FiX } from "react-icons/fi";
 import { LuSparkles } from "react-icons/lu";
 import GroceryAssistantInput from "./GroceryAssistantInput";
 import { getGrocerySuggestions } from "@/server-actions/ai/getGrocerySuggestions";
+import { matchGroceryProducts } from "@/server-actions/ai/matchGroceryProducts";
+import GrocerySuggestionsList, {
+  GrocerySuggestion,
+} from "./GrocerySuggestionsList";
 
 interface GroceryAssistantProps {
   open: boolean;
   onClose: () => void;
+}
+
+interface SuggestedItem {
+  name: string;
+  quantity: number;
 }
 
 export default function GroceryAssistant({
@@ -17,18 +24,39 @@ export default function GroceryAssistant({
   onClose,
 }: GroceryAssistantProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [items, setItems] = useState<SuggestedItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [suggesstions, setSuggestions] = useState<GrocerySuggestion[]>([]);
 
   const handleSearch = async (prompt: string) => {
     setIsLoading(true);
+    setError(null);
+    setItems([]);
 
-    const aiResult = await getGrocerySuggestions(prompt);
-
-    if (!aiResult.success) {
-      setIsLoading(false);
+    try {
+      const aiResult = await getGrocerySuggestions(prompt);
       console.log(aiResult);
-      return;
+
+      if (!aiResult.success) {
+        setError(aiResult.message ?? "Something went wrong. Please try again.");
+        return;
+      }
+
+      setItems(aiResult.items);
+
+      const productResult = await matchGroceryProducts(aiResult.items);
+
+      setIsLoading(false);
+      if (!productResult.success) {
+        console.log(productResult);
+        return;
+      }
+
+      setSuggestions(productResult.products);
+    } catch (err) {
+      console.error("GROCERY_ASSISTANT_ERROR:", err);
+      setError("Something went wrong. Please try again.");
     }
-    console.log(aiResult);
   };
 
   return (
@@ -37,7 +65,7 @@ export default function GroceryAssistant({
         <div onClick={onClose} className="fixed inset-0 z-50 bg-black/40" />
       )}
 
-      {/* Sidbar */}
+      {/* Sidebar */}
       <aside
         className={`fixed right-0 top-0 z-60 flex h-dvh w-full max-w-105 flex-col bg-white shadow-2xl transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-full"}`}
       >
@@ -47,12 +75,14 @@ export default function GroceryAssistant({
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#E8F7EF] text-primary">
               <LuSparkles size={18} />
             </div>
-            <h2 className="text-lg font-semibold text-text">
-              AI Grocery Assistant
-            </h2>
-            <p className="mt-0.5 text-xs text-muted">
-              Your smart shopping assistant
-            </p>
+            <div>
+              <h2 className="text-lg font-semibold text-text">
+                AI Grocery Assistant
+              </h2>
+              <p className="mt-0.5 text-xs text-muted">
+                Your smart shopping assistant
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -65,23 +95,70 @@ export default function GroceryAssistant({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-5">
-          <div className="flex h-full flex-col">
-            <div>
-              <h3 className="text-lg font-semibold text-text">
-                What are you cooking today?
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-muted">
-                Tell me what you want to cook and &apos;ll find the groceries
-                you need from our store.
-              </p>
-            </div>
+          <div>
+            <h3 className="text-lg font-semibold text-text">
+              What are you cooking today?
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Tell me what you want to cook and I&apos;ll find the groceries you
+              need from our store.
+            </p>
           </div>
+
           <div className="mt-6">
             <GroceryAssistantInput
               onSearch={handleSearch}
               isLoading={isLoading}
             />
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E8F7EF] text-primary">
+                  <LuSparkles className="animate-pulse" size={22} />
+                </div>
+                <h3 className="mt-4 text-sm font-semibold text-text">
+                  Finding your groceries...
+                </h3>
+                <p className="mt-2 max-w-xs text-xs leading-5 text-muted">
+                  We&apos;re understanding your request and finding the right
+                  products from our store.
+                </p>
+              </div>
+            ) : (
+              suggesstions.length > 0 && (
+                <div className="my-6 pb-20">
+                  <h3 className="mb-3 text-sm font-semibold text-text">
+                    Your Grocery List
+                  </h3>
+                  <GrocerySuggestionsList suggestions={suggesstions} />
+                </div>
+              )
+            )}
           </div>
+
+          {error && (
+            <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+              {error}
+            </p>
+          )}
+
+          {items.length > 0 && (
+            <div className="mt-6">
+              <p className="text-xs font-medium text-text">
+                Suggested ingredients
+              </p>
+              <ul className="mt-2 divide-y divide-border rounded-xl border border-border">
+                {items.map((item, index) => (
+                  <li
+                    key={`${item.name}-${index}`}
+                    className="flex items-center justify-between px-3 py-2 text-sm text-text"
+                  >
+                    <span>{item.name}</span>
+                    <span className="text-muted">x{item.quantity}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </aside>
     </>
