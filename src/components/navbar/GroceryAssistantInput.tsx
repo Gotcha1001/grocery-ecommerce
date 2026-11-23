@@ -14,7 +14,7 @@ const suggestions = [
   },
   {
     label: "Chicken fried rice",
-    promprt: "What do I need to make chicken fried rice?",
+    prompt: "What do I need to make chicken fried rice?",
   },
   {
     label: "Pancakes",
@@ -22,7 +22,7 @@ const suggestions = [
   },
   {
     label: "Healthy salad",
-    prompt: "WHat ingredients do I need for a healthy salad?",
+    prompt: "What ingredients do I need for a healthy salad?",
   },
   {
     label: "Tacos for 4",
@@ -108,7 +108,7 @@ export default function GroceryAssistantInput({
             </p>
             <button
               className="ml-auto flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-              type="button"
+              type="submit"
               disabled={!prompt.trim() || isLoading}
             >
               <LuSparkles size={15} />
