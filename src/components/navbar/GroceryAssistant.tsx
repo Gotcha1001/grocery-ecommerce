@@ -5,6 +5,7 @@ import { useState } from "react";
 import { FiMinus, FiPlus, FiTrash2, FiX } from "react-icons/fi";
 import { LuSparkles } from "react-icons/lu";
 import GroceryAssistantInput from "./GroceryAssistantInput";
+import { getGrocerySuggestions } from "@/server-actions/ai/getGrocerySuggestions";
 
 interface GroceryAssistantProps {
   open: boolean;
@@ -16,6 +17,20 @@ export default function GroceryAssistant({
   onClose,
 }: GroceryAssistantProps) {
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleSearch = async (prompt: string) => {
+    setIsLoading(true);
+
+    const aiResult = await getGrocerySuggestions(prompt);
+
+    if (!aiResult.success) {
+      setIsLoading(false);
+      console.log(aiResult);
+      return;
+    }
+    console.log(aiResult);
+  };
+
   return (
     <>
       {open && (
@@ -63,9 +78,7 @@ export default function GroceryAssistant({
           </div>
           <div className="mt-6">
             <GroceryAssistantInput
-              onSearch={(prompt) => {
-                console.log(prompt);
-              }}
+              onSearch={handleSearch}
               isLoading={isLoading}
             />
           </div>
